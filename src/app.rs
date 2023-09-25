@@ -173,12 +173,12 @@ impl eframe::App for TemplateApp {
         let max_ts = year_to_ts(*max_year + 1).unwrap();
         let predicate = |ts| (ts >= min_ts) && (ts <= max_ts);
         let parsed_json = serde_json::from_str(json_body);
-        egui::TopBottomPanel::top("top panel").show(ctx, |ui| {
+
+        egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.heading("JSON-unix-time");
             ui.hyperlink("https://github.com/tomshlomo/json-unix-time");
             egui::warn_if_debug_build(ui);
-        });
-        egui::SidePanel::left("left panel").show(ctx, |ui| {
+            ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Min year:");
                 ui.add(egui::DragValue::new(min_year).speed(1.0));
@@ -194,7 +194,7 @@ impl eframe::App for TemplateApp {
                 ui.add(egui::DragValue::new(anchor).speed(1.0));
                 ui.label(ts_to_str(*anchor, fmt).unwrap_or("N/A".to_owned()));
             });
-
+            ui.separator();
             egui::TextEdit::multiline(json_body)
                 .hint_text("Paste your JSON here!")
                 .show(ui);
