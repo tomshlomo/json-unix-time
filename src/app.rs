@@ -1,21 +1,153 @@
+use crate::json_crawl::crawl_json;
+use crate::{datetime::year_to_ts, json_crawl::JsonPath};
+use chrono::{Datelike, Utc};
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct TemplateApp {
     // Example stuff:
-    label: String,
-
-    // this how you opt-out of serialization of a member
-    #[serde(skip)]
-    value: f32,
+    min_year: i32,
+    max_year: i32,
+    json_body: String,
 }
-
 impl Default for TemplateApp {
     fn default() -> Self {
+        let current_datetime = Utc::now();
+
+        // Extract the year from the current date and time
+        let current_year = current_datetime.year();
+
         Self {
             // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            min_year: current_year - 2,
+            max_year: current_year + 3,
+            json_body: r#"
+            {
+                "now_ts": 1678912200,
+                "shift_plan":{
+                    "actual_end_shift_ts": null,
+                    "actual_start_shift_ts": 1678967840,
+                    "algo_data": {
+                            "shift_plan_cost": {
+                        "total_shift_plan_cost": 53279.33500000001,
+                        "violation_component": 0
+                      }
+                    },
+                    "capacity_configurations": [
+                      {
+                        "seats": 5,
+                        "system_ride": 0,
+                        "wheelchairs": 0
+                      }
+                    ],
+                    "driver_id": "30001",
+                    "end_shift_task": null,
+                    "jobs": {
+                      "break_jobs": [],
+                      "end_shift_job": {
+                        "actual_ts": null,
+                        "eta": null,
+                        "planned_end_ts": null,
+                        "planned_location": null,
+                        "planned_ts": null,
+                        "relative_planned_end_ts": null,
+                        "relative_planned_ts": null
+                      },
+                      "pass_through_jobs": [],
+                      "ride_jobs": [],
+                      "start_shift_job": {
+                        "actual_ts": 1678967840,
+                        "eta": null,
+                        "planned_end_ts": null,
+                        "planned_location": {
+                          "address": {
+                            "number": null,
+                            "street": null
+                          },
+                          "bearing": -2.2948000000000093,
+                          "description": null,
+                          "edge_id": -1217565107,
+                          "lat": 35.32366473610731,
+                          "lng": -119.05894420476312,
+                          "place_id": null,
+                          "place_of_business": null,
+                          "position_on_edge": 0.9675
+                        },
+                        "planned_ts": 1678967840,
+                        "relative_planned_end_ts": null,
+                        "relative_planned_ts": null
+                      },
+                      "wait_jobs": []
+                    },
+                    "license_plate": "p00001",
+                    "operational_data": {
+                      "future_projected_location": {
+                        "edge_data": {
+                          "edge_id": 109189331,
+                          "position_on_edge": 0
+                        },
+                        "location": {
+                          "bearing": 0,
+                          "lat": 35.319382,
+                          "lng": -119.056679
+                        },
+                        "location_time": 1678969380
+                        ,
+                        "tasks_until_future_location": []
+                      },
+                      "last_observed_location": {
+                        "bearing": 0,
+                        "lat": 35.323632762486,
+                        "lng": -119.05842188395677,
+                        "location_time": 1678969300
+                      },
+                      "projected_location": {
+                        "edge_data": {
+                          "edge_id": -1217565107,
+                          "position_on_edge": 0.9675
+                        },
+                        "location": {
+                          "bearing": 357.7052,
+                          "lat": 35.32366473610731,
+                          "lng": -119.05894420476312
+                        },
+                        "location_time": 1678969300
+                      },
+                      "suspected_off_route": null
+                    },
+                    "requested_end_shift_location": {
+                              "address": {
+                                  "number": null,
+                                  "street": null
+                              },
+                              "bearing": null,
+                              "description": "D\u00e9p\u00f4t Keolis Pam 94",
+                              "edge_id": null,
+                              "lat": 35.388518,
+                              "lng": -119.020748,
+                              "place_of_business": null,
+                              "position_on_edge": null
+                          },
+                    "requested_end_shift_ts": 1678971600,
+                    "requested_start_shift_location": null,
+                    "requested_start_shift_ts": 1678968000,
+                    "ride_groups": null,
+                    "service_tags": [],
+                    "shift_plan_id": "bbfa5acf-c587-4b5c-96f8-26fb80b67300",
+                    "shift_routes": null,
+                    "shift_times_source": "AUTOMATIC",
+                    "shift_trips": null,
+                    "shift_type": "DYNAMIC",
+                    "start_shift_task": null,
+                    "stop_times": null,
+                    "van_id": "30001",
+                    "van_tags": []
+                  },
+                "update_all_cache": false
+              }
+            "#
+            .to_owned(),
         }
     }
 }
@@ -45,72 +177,36 @@ impl eframe::App for TemplateApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value } = self;
+        let Self {
+            min_year,
+            max_year,
+            json_body,
+        } = self;
 
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
-        // Tip: a good default choice is to just keep the `CentralPanel`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Quit").clicked() {
-                        _frame.close();
-                    }
-                });
-            });
-        });
-
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
-
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
-                });
-            });
-        });
+        let min_ts = year_to_ts(*min_year).unwrap() as f64;
+        let max_ts = year_to_ts(*max_year + 1).unwrap() as f64;
+        let predicate = |ts| (ts >= min_ts) && (ts <= max_ts);
+        let parsed_json = serde_json::from_str(json_body).unwrap();
+        let mut out = vec![];
+        crawl_json(parsed_json, JsonPath::new(), &predicate, &mut out);
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
+            egui::warn_if_debug_build(ui);
+            ui.heading("JSON-unix-time");
             ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
+                "https://github.com/tomshlomo/json-unix-time",
                 "Source code."
             ));
-            egui::warn_if_debug_build(ui);
-        });
-
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally choose either panels OR windows.");
+            ui.horizontal(|ui| {
+                ui.label("Min year");
+                ui.add(egui::DragValue::new(min_year).speed(1.0));
+                ui.label("Max year");
+                ui.add(egui::DragValue::new(max_year).speed(1.0));
             });
-        }
+
+            egui::TextEdit::multiline(json_body)
+                .hint_text("Paste your JSON here!")
+                .show(ui);
+        });
     }
 }
