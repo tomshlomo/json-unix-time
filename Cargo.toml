@@ -1,7 +1,7 @@
 [package]
-name = "eframe_template"
+name = "json_unix_time"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["Tom Shlomo <tomshlomo@gmail.com>"]
 edition = "2021"
 rust-version = "1.71"
 
