@@ -58,7 +58,7 @@ impl Default for TemplateApp {
 
 impl TemplateApp {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
@@ -71,12 +71,10 @@ impl TemplateApp {
         Default::default()
     }
 
-    fn table_ui(x: &Vec<(JsonPath, i64)>, fmt: &str, anchor: &mut i64, ui: &mut egui::Ui) {
+    fn table_ui(x: &[(JsonPath, i64)], fmt: &str, anchor: &mut i64, ui: &mut egui::Ui) {
         use egui_extras::{Column, TableBuilder};
 
-        let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
-
-        let mut table = TableBuilder::new(ui)
+        let table = TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
