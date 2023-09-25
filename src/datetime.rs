@@ -9,6 +9,13 @@ pub fn year_to_ts(year: i32) -> Option<i64> {
     let datetime = year_to_datetime(year)?;
     Some(datetime.timestamp())
 }
+
+pub fn ts_to_str(ts: i64, fmt: &str) -> Option<String> {
+    let datetime_utc = Utc.timestamp_opt(ts, 0).earliest()?;
+    // You can format the DateTime in a human-readable way
+    Some(datetime_utc.format(fmt).to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

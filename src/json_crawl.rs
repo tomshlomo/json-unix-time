@@ -34,15 +34,14 @@ impl Display for JsonPath {
         write!(f, "{}", out)
     }
 }
-pub fn crawl_json<F>(value: Value, path: JsonPath, predicate: &F, out: &mut Vec<(JsonPath, f64)>)
+pub fn crawl_json<F>(value: Value, path: JsonPath, predicate: &F, out: &mut Vec<(JsonPath, i64)>)
 where
-    F: Fn(f64) -> bool,
+    F: Fn(i64) -> bool,
 {
     match value {
         Value::Number(num) => {
-            if let Some(num) = num.as_f64() {
+            if let Some(num) = num.as_i64() {
                 if predicate(num) {
-                    println!("{} = {}", path, num);
                     out.push((path, num))
                 }
             }
@@ -92,7 +91,7 @@ mod tests {
         }"#;
         let value = serde_json::from_str(data).unwrap();
         let mut out = vec![];
-        let predicate = |num| num > 8.0;
+        let predicate = |num| num > 8;
         crawl_json(value, JsonPath::new(), &predicate, &mut out);
     }
 }

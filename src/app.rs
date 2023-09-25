@@ -1,15 +1,33 @@
+use crate::datetime::ts_to_str;
 use crate::json_crawl::crawl_json;
 use crate::{datetime::year_to_ts, json_crawl::JsonPath};
 use chrono::{Datelike, Utc};
+use egui::{Response, Ui};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
+// #[derive(serde::Deserialize, serde::Serialize)]
+// #[serde(default)] // if we add new fields, give them default values when deserializing old state
+
+fn add_copiable_label(text: String, ui: &mut Ui, with_hover_text: bool) -> Response {
+    let mut label = ui.add(egui::Label::new(&text).sense(egui::Sense::click()));
+    if with_hover_text {
+        label = label.on_hover_text("Click to copy");
+    }
+    if label.clicked_by(egui::PointerButton::Primary) {
+        ui.output_mut(|po| {
+            po.copied_text = text;
+        });
+    }
+    label
+}
+
 pub struct TemplateApp {
     // Example stuff:
     min_year: i32,
     max_year: i32,
     json_body: String,
+    fmt: String,
+    anchor: i64,
 }
 impl Default for TemplateApp {
     fn default() -> Self {
@@ -22,132 +40,18 @@ impl Default for TemplateApp {
             // Example stuff:
             min_year: current_year - 2,
             max_year: current_year + 3,
-            json_body: r#"
-            {
-                "now_ts": 1678912200,
-                "shift_plan":{
-                    "actual_end_shift_ts": null,
-                    "actual_start_shift_ts": 1678967840,
-                    "algo_data": {
-                            "shift_plan_cost": {
-                        "total_shift_plan_cost": 53279.33500000001,
-                        "violation_component": 0
-                      }
-                    },
-                    "capacity_configurations": [
-                      {
-                        "seats": 5,
-                        "system_ride": 0,
-                        "wheelchairs": 0
-                      }
-                    ],
-                    "driver_id": "30001",
-                    "end_shift_task": null,
-                    "jobs": {
-                      "break_jobs": [],
-                      "end_shift_job": {
-                        "actual_ts": null,
-                        "eta": null,
-                        "planned_end_ts": null,
-                        "planned_location": null,
-                        "planned_ts": null,
-                        "relative_planned_end_ts": null,
-                        "relative_planned_ts": null
-                      },
-                      "pass_through_jobs": [],
-                      "ride_jobs": [],
-                      "start_shift_job": {
-                        "actual_ts": 1678967840,
-                        "eta": null,
-                        "planned_end_ts": null,
-                        "planned_location": {
-                          "address": {
-                            "number": null,
-                            "street": null
-                          },
-                          "bearing": -2.2948000000000093,
-                          "description": null,
-                          "edge_id": -1217565107,
-                          "lat": 35.32366473610731,
-                          "lng": -119.05894420476312,
-                          "place_id": null,
-                          "place_of_business": null,
-                          "position_on_edge": 0.9675
-                        },
-                        "planned_ts": 1678967840,
-                        "relative_planned_end_ts": null,
-                        "relative_planned_ts": null
-                      },
-                      "wait_jobs": []
-                    },
-                    "license_plate": "p00001",
-                    "operational_data": {
-                      "future_projected_location": {
-                        "edge_data": {
-                          "edge_id": 109189331,
-                          "position_on_edge": 0
-                        },
-                        "location": {
-                          "bearing": 0,
-                          "lat": 35.319382,
-                          "lng": -119.056679
-                        },
-                        "location_time": 1678969380
-                        ,
-                        "tasks_until_future_location": []
-                      },
-                      "last_observed_location": {
-                        "bearing": 0,
-                        "lat": 35.323632762486,
-                        "lng": -119.05842188395677,
-                        "location_time": 1678969300
-                      },
-                      "projected_location": {
-                        "edge_data": {
-                          "edge_id": -1217565107,
-                          "position_on_edge": 0.9675
-                        },
-                        "location": {
-                          "bearing": 357.7052,
-                          "lat": 35.32366473610731,
-                          "lng": -119.05894420476312
-                        },
-                        "location_time": 1678969300
-                      },
-                      "suspected_off_route": null
-                    },
-                    "requested_end_shift_location": {
-                              "address": {
-                                  "number": null,
-                                  "street": null
-                              },
-                              "bearing": null,
-                              "description": "D\u00e9p\u00f4t Keolis Pam 94",
-                              "edge_id": null,
-                              "lat": 35.388518,
-                              "lng": -119.020748,
-                              "place_of_business": null,
-                              "position_on_edge": null
-                          },
-                    "requested_end_shift_ts": 1678971600,
-                    "requested_start_shift_location": null,
-                    "requested_start_shift_ts": 1678968000,
-                    "ride_groups": null,
-                    "service_tags": [],
-                    "shift_plan_id": "bbfa5acf-c587-4b5c-96f8-26fb80b67300",
-                    "shift_routes": null,
-                    "shift_times_source": "AUTOMATIC",
-                    "shift_trips": null,
-                    "shift_type": "DYNAMIC",
-                    "start_shift_task": null,
-                    "stop_times": null,
-                    "van_id": "30001",
-                    "van_tags": []
-                  },
-                "update_all_cache": false
-              }
-            "#
+            anchor: 1678968000,
+            json_body: r#"{
+  "field1": 1678968000,
+  "field2": "I am a string",
+  "field3": [1678969000, 1678978000, 1678868000],
+  "field4": {
+    "subfield1": null,
+    "subfield2": 1678968000
+  }
+}"#
             .to_owned(),
+            fmt: "%Y-%m-%d %H:%M:%S".to_owned(),
         }
     }
 }
@@ -160,19 +64,101 @@ impl TemplateApp {
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }
+        // if let Some(storage) = cc.storage {
+        //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        // }
 
         Default::default()
+    }
+
+    fn table_ui(x: &Vec<(JsonPath, i64)>, fmt: &str, anchor: &mut i64, ui: &mut egui::Ui) {
+        use egui_extras::{Column, TableBuilder};
+
+        let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
+
+        let mut table = TableBuilder::new(ui)
+            .striped(true)
+            .resizable(true)
+            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::remainder())
+            .min_scrolled_height(0.0);
+
+        table
+            .header(20.0, |mut header| {
+                header.col(|ui| {
+                    ui.strong("Row");
+                });
+                header.col(|ui| {
+                    ui.strong("Unix-time");
+                });
+                header.col(|ui| {
+                    ui.strong("Human Readable");
+                });
+                header.col(|ui| {
+                    ui.strong("Relative");
+                });
+                header.col(|ui| {
+                    ui.strong("JSON Path");
+                });
+            })
+            .body(|mut body| {
+                for (row_index, (path, ts)) in x.iter().enumerate() {
+                    let row_height = 18.0;
+                    body.row(row_height, |mut row| {
+                        row.col(|ui| {
+                            ui.label(row_index.to_string());
+                        });
+                        row.col(|ui| {
+                            let response = add_copiable_label(ts.to_string(), ui, false)
+                                .on_hover_text(
+                                    "Left click to copy.\nRight click to set as anchor.".to_owned(),
+                                );
+                            if response.clicked_by(egui::PointerButton::Secondary) {
+                                *anchor = *ts
+                            }
+                            // ui.label(ts.to_string());
+                        });
+                        row.col(|ui| {
+                            add_copiable_label(
+                                ts_to_str(*ts, fmt).unwrap_or("N/A".to_owned()),
+                                ui,
+                                true,
+                            );
+                        });
+                        row.col(|ui| {
+                            let diff = ts - *anchor;
+                            let abs_diff = diff.abs();
+                            let hours = abs_diff / 3600;
+                            let minutes = (abs_diff % 3600) / 60;
+                            let seconds = abs_diff % 60;
+                            let sign = if diff < 0 { "-" } else { "+" };
+                            add_copiable_label(
+                                format!("{}{:02}:{:02}:{:02}", sign, hours, minutes, seconds),
+                                ui,
+                                true,
+                            );
+                            // let dur = chrono::Duration::seconds(ts - anchor);
+                            // ui.label(dur.to_string());
+                        });
+                        row.col(|ui| {
+                            ui.style_mut().wrap = Some(false);
+                            add_copiable_label(format!("{}", path), ui, true);
+                        });
+                    });
+                }
+            });
     }
 }
 
 impl eframe::App for TemplateApp {
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
+    // fn save(&mut self, storage: &mut dyn eframe::Storage) {
+    //     eframe::set_value(storage, eframe::APP_KEY, self);
+    // }
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
@@ -181,32 +167,50 @@ impl eframe::App for TemplateApp {
             min_year,
             max_year,
             json_body,
+            fmt,
+            anchor,
         } = self;
 
-        let min_ts = year_to_ts(*min_year).unwrap() as f64;
-        let max_ts = year_to_ts(*max_year + 1).unwrap() as f64;
+        let min_ts = year_to_ts(*min_year).unwrap();
+        let max_ts = year_to_ts(*max_year + 1).unwrap();
         let predicate = |ts| (ts >= min_ts) && (ts <= max_ts);
-        let parsed_json = serde_json::from_str(json_body).unwrap();
-        let mut out = vec![];
-        crawl_json(parsed_json, JsonPath::new(), &predicate, &mut out);
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::warn_if_debug_build(ui);
+        let parsed_json = serde_json::from_str(json_body);
+        egui::TopBottomPanel::top("top panel").show(ctx, |ui| {
             ui.heading("JSON-unix-time");
-            ui.add(egui::github_link_file!(
-                "https://github.com/tomshlomo/json-unix-time",
-                "Source code."
-            ));
+            ui.hyperlink("https://github.com/tomshlomo/json-unix-time");
+            egui::warn_if_debug_build(ui);
+        });
+        egui::SidePanel::left("left panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Min year");
+                ui.label("Min year:");
                 ui.add(egui::DragValue::new(min_year).speed(1.0));
-                ui.label("Max year");
+                ui.label("Max year:");
                 ui.add(egui::DragValue::new(max_year).speed(1.0));
+            });
+            ui.horizontal(|ui| {
+                ui.label("Datetime format:");
+                ui.text_edit_singleline(fmt);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Anchor ts:");
+                ui.add(egui::DragValue::new(anchor).speed(1.0));
+                ui.label(ts_to_str(*anchor, fmt).unwrap_or("N/A".to_owned()));
             });
 
             egui::TextEdit::multiline(json_body)
                 .hint_text("Paste your JSON here!")
                 .show(ui);
+        });
+        egui::CentralPanel::default().show(ctx, |ui| match parsed_json {
+            Ok(parsed_json) => {
+                let mut out = vec![];
+                crawl_json(parsed_json, JsonPath::new(), &predicate, &mut out);
+                out.sort_by_key(|(_, ts)| *ts);
+                Self::table_ui(&out, fmt, anchor, ui);
+            }
+            Err(err) => {
+                ui.label(err.to_string());
+            }
         });
     }
 }
