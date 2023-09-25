@@ -2,7 +2,7 @@ use crate::datetime::ts_to_str;
 use crate::json_crawl::crawl_json;
 use crate::{datetime::year_to_ts, json_crawl::JsonPath};
 use chrono::{Datelike, Utc};
-use egui::{Response, Ui};
+use egui::{Response, ScrollArea, Ui};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 // #[derive(serde::Deserialize, serde::Serialize)]
@@ -40,14 +40,14 @@ impl Default for TemplateApp {
             // Example stuff:
             min_year: current_year - 2,
             max_year: current_year + 3,
-            anchor: 1678968000,
+            anchor: 1692694500,
             json_body: r#"{
-  "field1": 1678968000,
+  "field1": 1692694500,
   "field2": "I am a string",
-  "field3": [1678969000, 1678978000, 1678868000],
+  "field3": [1692684500, 1692693500, 1692699500],
   "field4": {
     "subfield1": null,
-    "subfield2": 1678968000
+    "subfield2": 1692694500
   }
 }"#
             .to_owned(),
@@ -94,13 +94,13 @@ impl TemplateApp {
                     ui.strong("Unix-time");
                 });
                 header.col(|ui| {
-                    ui.strong("Human Readable");
+                    ui.strong("Human readable");
                 });
                 header.col(|ui| {
                     ui.strong("Relative");
                 });
                 header.col(|ui| {
-                    ui.strong("JSON Path");
+                    ui.strong("Path in JSON");
                 });
             })
             .body(|mut body| {
@@ -195,16 +195,21 @@ impl eframe::App for TemplateApp {
                 ui.label(ts_to_str(*anchor, fmt).unwrap_or("N/A".to_owned()));
             });
             ui.separator();
-            egui::TextEdit::multiline(json_body)
-                .hint_text("Paste your JSON here!")
-                .show(ui);
+            ScrollArea::vertical().show(ui, |ui| {
+                egui::TextEdit::multiline(json_body)
+                    .hint_text("Paste your JSON here!")
+                    .desired_width(f32::INFINITY)
+                    .show(ui);
+            });
         });
         egui::CentralPanel::default().show(ctx, |ui| match parsed_json {
             Ok(parsed_json) => {
                 let mut out = vec![];
                 crawl_json(parsed_json, JsonPath::new(), &predicate, &mut out);
                 out.sort_by_key(|(_, ts)| *ts);
-                Self::table_ui(&out, fmt, anchor, ui);
+                ScrollArea::horizontal().show(ui, |ui| {
+                    Self::table_ui(&out, fmt, anchor, ui);
+                });
             }
             Err(err) => {
                 ui.label(err.to_string());
