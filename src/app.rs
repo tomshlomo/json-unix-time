@@ -1,5 +1,6 @@
 use crate::datetime::ts_to_str;
-use crate::json_crawl::crawl_json;
+use crate::json_crawl::{crawl_json, JsonPathPart};
+use crate::tree::tree;
 use crate::{datetime::year_to_ts, json_crawl::JsonPath};
 use chrono::{Datelike, Utc};
 use egui::{Response, ScrollArea, Ui};
@@ -21,6 +22,10 @@ fn add_copiable_label(text: String, ui: &mut Ui, with_hover_text: bool) -> Respo
     label
 }
 
+enum SortBy {
+    Time,
+    Path,
+}
 pub struct TemplateApp {
     // Example stuff:
     min_year: i32,
@@ -28,6 +33,9 @@ pub struct TemplateApp {
     json_body: String,
     fmt: String,
     anchor: i64,
+    highlighted_path: Option<JsonPath>,
+    sort_by: SortBy,
+    ascend: bool,
 }
 impl Default for TemplateApp {
     fn default() -> Self {
@@ -52,6 +60,9 @@ impl Default for TemplateApp {
 }"#
             .to_owned(),
             fmt: "%Y-%m-%d %H:%M:%S".to_owned(),
+            highlighted_path: None,
+            sort_by: SortBy::Time,
+            ascend: true,
         }
     }
 }
@@ -67,11 +78,25 @@ impl TemplateApp {
         // if let Some(storage) = cc.storage {
         //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         // }
-
-        Default::default()
+        Self::default()
+        // Default::default()
     }
 
-    fn table_ui(x: &[(JsonPath, i64)], fmt: &str, anchor: &mut i64, ui: &mut egui::Ui) {
+    fn clickable_strong_label(text: String, ui: &mut Ui) -> bool {
+        let label = ui.add(
+            egui::Label::new(egui::RichText::strong(egui::RichText::from(text)))
+                .sense(egui::Sense::click()),
+        );
+        label.clicked()
+    }
+    fn table_ui(
+        x: &[(JsonPath, i64)],
+        fmt: &str,
+        anchor: &mut i64,
+        sort_by: &mut SortBy,
+        ascend: &mut bool,
+        ui: &mut egui::Ui,
+    ) {
         use egui_extras::{Column, TableBuilder};
 
         let table = TableBuilder::new(ui)
@@ -84,23 +109,36 @@ impl TemplateApp {
             .column(Column::auto())
             .column(Column::remainder())
             .min_scrolled_height(0.0);
-
+        let arrow = if *ascend { " ↗" } else { " ↘" };
+        let (time_arrow, path_arrow) = match sort_by {
+            SortBy::Time => (arrow, ""),
+            SortBy::Path => ("", arrow),
+        };
+        let mut time_clicked = false;
+        let mut path_clicked = false;
         table
             .header(20.0, |mut header| {
                 header.col(|ui| {
                     ui.strong("Row");
                 });
                 header.col(|ui| {
-                    ui.strong("Unix-time");
+                    time_clicked |=
+                        Self::clickable_strong_label(format!("Unix-time{}", time_arrow), ui);
+                    // ui.strong(format!("Unix-time{}", time_arrow));
                 });
                 header.col(|ui| {
-                    ui.strong("Human readable");
+                    time_clicked |=
+                        Self::clickable_strong_label(format!("Human Readable{}", time_arrow), ui);
+                    // ui.strong(format!("Human readable{}", time_arrow));
                 });
                 header.col(|ui| {
-                    ui.strong("Relative");
+                    time_clicked |=
+                        Self::clickable_strong_label(format!("Relative{}", time_arrow), ui);
+                    // ui.strong(format!("Relative{}", time_arrow));
                 });
                 header.col(|ui| {
-                    ui.strong("Path in JSON");
+                    path_clicked |=
+                        Self::clickable_strong_label(format!("Path in JSON{}", path_arrow), ui);
                 });
             })
             .body(|mut body| {
@@ -149,6 +187,14 @@ impl TemplateApp {
                     });
                 }
             });
+        if time_clicked {
+            *sort_by = SortBy::Time
+        } else if path_clicked {
+            *sort_by = SortBy::Path
+        };
+        if time_clicked | path_clicked {
+            *ascend = !*ascend;
+        };
     }
 }
 
@@ -167,6 +213,9 @@ impl eframe::App for TemplateApp {
             json_body,
             fmt,
             anchor,
+            highlighted_path,
+            sort_by,
+            ascend,
         } = self;
 
         let min_ts = year_to_ts(*min_year).unwrap();
@@ -205,11 +254,32 @@ impl eframe::App for TemplateApp {
         egui::CentralPanel::default().show(ctx, |ui| match parsed_json {
             Ok(parsed_json) => {
                 let mut out = vec![];
-                crawl_json(parsed_json, JsonPath::new(), &predicate, &mut out);
-                out.sort_by_key(|(_, ts)| *ts);
+                crawl_json(&parsed_json, JsonPath::new(), &predicate, &mut out);
+                // out.sort_by(|a, b| );
+                match sort_by {
+                    SortBy::Time => out.sort_by_key(|(path, ts)| (*ts, path.0.clone())),
+                    SortBy::Path => {
+                        out.sort_by_key(|(path, _)| path.0.clone())
+                        // let z = out.iter().map(|(path, _)| path);
+                    }
+                }
+                if !*ascend {
+                    out.reverse();
+                }
                 ScrollArea::horizontal().show(ui, |ui| {
-                    Self::table_ui(&out, fmt, anchor, ui);
+                    Self::table_ui(&out, fmt, anchor, sort_by, ascend, ui);
                 });
+                // let path_to_open = Some(JsonPath(vec![
+                //     JsonPathPart::Field("field4".to_owned()),
+                //     JsonPathPart::Field("subfield2".to_owned()),
+                // ]));
+                // tree(
+                //     &parsed_json,
+                //     ui,
+                //     "".to_owned(),
+                //     JsonPath::new(),
+                //     path_to_open.as_ref(),
+                // );
             }
             Err(err) => {
                 ui.label(err.to_string());
