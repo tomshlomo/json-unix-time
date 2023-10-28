@@ -196,6 +196,64 @@ impl TemplateApp {
             *ascend = !*ascend;
         };
     }
+
+    fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
+        use egui::*;
+        use std::fmt::Write as _;
+
+        // Preview hovering files:
+        if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
+            let text = ctx.input(|i| {
+                let mut text = "Dropping files:\n".to_owned();
+                for file in &i.raw.hovered_files {
+                    if let Some(path) = &file.path {
+                        write!(text, "\n{}", path.display()).ok();
+                    } else if !file.mime.is_empty() {
+                        write!(text, "\n{}", file.mime).ok();
+                    } else {
+                        text += "\n???";
+                    }
+                }
+                text
+            });
+
+            let painter =
+                ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+
+            let screen_rect = ctx.screen_rect();
+            painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
+            painter.text(
+                screen_rect.center(),
+                Align2::CENTER_CENTER,
+                text,
+                TextStyle::Heading.resolve(&ctx.style()),
+                Color32::WHITE,
+            );
+        }
+
+        // Collect dropped files:
+        ctx.input(|i| {
+            dbg!(&i.raw.dropped_files);
+            if !i.raw.dropped_files.is_empty() {
+                println!("not empty");
+                if let Some(bytes) = i.raw.dropped_files[0].bytes.as_deref() {
+                    println!("some bytes");
+                    if let Ok(file_content) = std::str::from_utf8(bytes) {
+                        println!("valid utf8");
+                        self.json_body = file_content.to_owned();
+                    }
+                }
+                // let y = x.clone();
+                // let v: &[u8] = &y;
+                // // let v = x.into_iter();
+
+                // // let c = String::from_utf8(x.into_iter().collect());
+                // let z = std::str::from_utf8(v);
+            }
+        });
+
+        // Show dropped files (if any):
+    }
 }
 
 impl eframe::App for TemplateApp {
@@ -285,5 +343,6 @@ impl eframe::App for TemplateApp {
                 ui.label(err.to_string());
             }
         });
+        self.ui_file_drag_and_drop(ctx);
     }
 }
