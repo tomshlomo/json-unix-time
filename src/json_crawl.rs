@@ -2,13 +2,14 @@ use std::fmt::Display;
 
 use serde_json::Value;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug, PartialOrd, Ord)]
 pub enum JsonPathPart {
     Field(String),
     Index(usize),
 }
 
-pub struct JsonPath(Vec<JsonPathPart>);
+#[derive(PartialEq, Eq, Debug, PartialOrd, Ord)]
+pub struct JsonPath(pub Vec<JsonPathPart>);
 
 impl JsonPath {
     pub fn new() -> Self {
@@ -18,6 +19,9 @@ impl JsonPath {
         let mut vec = self.0.clone();
         vec.push(part);
         JsonPath(vec)
+    }
+    pub fn is_prefix_of(&self, other: &Self) -> bool {
+        self.0 == other.0[..self.0.len().min(other.0.len())]
     }
 }
 impl Display for JsonPath {
@@ -34,7 +38,7 @@ impl Display for JsonPath {
         write!(f, "{}", out)
     }
 }
-pub fn crawl_json<F>(value: Value, path: JsonPath, predicate: &F, out: &mut Vec<(JsonPath, i64)>)
+pub fn crawl_json<F>(value: &Value, path: JsonPath, predicate: &F, out: &mut Vec<(JsonPath, i64)>)
 where
     F: Fn(i64) -> bool,
 {
@@ -47,14 +51,14 @@ where
             }
         }
         Value::Array(arr) => {
-            for (i, sub_val) in arr.into_iter().enumerate() {
+            for (i, sub_val) in arr.iter().enumerate() {
                 let sub_path = path.append(JsonPathPart::Index(i));
                 crawl_json(sub_val, sub_path, predicate, out);
             }
         }
         Value::Object(obj) => {
             for (key, sub_val) in obj.into_iter() {
-                let sub_path = path.append(JsonPathPart::Field(key));
+                let sub_path = path.append(JsonPathPart::Field(key.clone()));
                 crawl_json(sub_val, sub_path, predicate, out)
             }
         }
@@ -75,23 +79,55 @@ mod tests {
             "phones": [
                 123,
                 456
-            ],
-            "nested": {
-                "num": -13.4,
-                "more_num": 12,
-                "list": [
-                    1,
-                    "a"
-                ]
-            },
-            "obj_list": [
-                {"a": 1, "b": 2},
-                {"a": 10, "b": "1"}
-            ]
-        }"#;
+                ],
+                "nested": {
+                    "num": -13.4,
+                    "more_num": 12,
+                    "list": [
+                        1,
+                        "a"
+                        ]
+                    },
+                    "obj_list": [
+                        {"a": 1, "b": 2},
+                        {"a": 10, "b": "1"}
+                        ]
+                    }"#;
         let value = serde_json::from_str(data).unwrap();
         let mut out = vec![];
         let predicate = |num| num > 8;
-        crawl_json(value, JsonPath::new(), &predicate, &mut out);
+        crawl_json(&value, JsonPath::new(), &predicate, &mut out);
+    }
+
+    #[test]
+    fn text_is_subset_off() {
+        let x = JsonPath(vec![
+            JsonPathPart::Field("a".to_owned()),
+            JsonPathPart::Field("b".to_owned()),
+            JsonPathPart::Field("c".to_owned()),
+        ]);
+        let y = JsonPath(vec![
+            JsonPathPart::Field("a".to_owned()),
+            JsonPathPart::Field("b".to_owned()),
+        ]);
+        let z = JsonPath(vec![
+            JsonPathPart::Field("a".to_owned()),
+            JsonPathPart::Field("b".to_owned()),
+            JsonPathPart::Index(13),
+        ]);
+        let w = JsonPath::new();
+
+        assert!(y.is_prefix_of(&x));
+        assert!(y.is_prefix_of(&z));
+        assert!(!x.is_prefix_of(&y));
+        assert!(!x.is_prefix_of(&z));
+        assert!(!z.is_prefix_of(&x));
+        assert!(!z.is_prefix_of(&y));
+        assert!(w.is_prefix_of(&w));
+        for path in [&x, &y, &z] {
+            assert!(path.is_prefix_of(path));
+            assert!(w.is_prefix_of(path));
+            assert!(!path.is_prefix_of(&w));
+        }
     }
 }
