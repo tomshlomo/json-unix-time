@@ -3,7 +3,7 @@ use crate::json_crawl::{crawl_json, JsonPathPart};
 use crate::tree::tree;
 use crate::{datetime::year_to_ts, json_crawl::JsonPath};
 use chrono::{Datelike, Utc};
-use egui::{Response, ScrollArea, Ui};
+use egui::{vec2, Response, ScrollArea, Ui};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 // #[derive(serde::Deserialize, serde::Serialize)]
@@ -36,6 +36,7 @@ pub struct TemplateApp {
     highlighted_path: Option<JsonPath>,
     sort_by: SortBy,
     ascend: bool,
+    instruction_open: bool,
 }
 impl Default for TemplateApp {
     fn default() -> Self {
@@ -63,6 +64,7 @@ impl Default for TemplateApp {
             highlighted_path: None,
             sort_by: SortBy::Time,
             ascend: true,
+            instruction_open: false,
         }
     }
 }
@@ -254,6 +256,23 @@ impl TemplateApp {
 
         // Show dropped files (if any):
     }
+
+    fn show_instructions(ctx: &egui::Context, open: &mut bool) {
+        egui::Window::new("instructions")
+            .open(open)
+            .resizable(true)
+            .vscroll(false)
+            .show(ctx, |ui| {
+                ui.label("Paste or drop any JSON file in the left box. \
+                Any numeric field that is a valid unix timestamp, will be displayed on the table on the right.\n\n\
+                A numeric value is considered a valid unix timestamp if it is between the min and max years.\n\n\
+                The \"Relative\" column displays the time relative to the anchor. \
+                You can set the anchor manually, or by right clicking any timestamp on the table.\n\n\
+                The table can be sorted either by time or path in Json.\n\n\
+                Left click a table cell to copy its content.
+                ")
+            });
+    }
 }
 
 impl eframe::App for TemplateApp {
@@ -274,7 +293,9 @@ impl eframe::App for TemplateApp {
             highlighted_path,
             sort_by,
             ascend,
+            instruction_open,
         } = self;
+        Self::show_instructions(ctx, instruction_open);
 
         let min_ts = year_to_ts(*min_year).unwrap();
         let max_ts = year_to_ts(*max_year + 1).unwrap();
@@ -285,6 +306,10 @@ impl eframe::App for TemplateApp {
             ui.heading("JSON-unix-time");
             ui.hyperlink("https://github.com/tomshlomo/json-unix-time");
             egui::warn_if_debug_build(ui);
+
+            if ui.button("Instructions").clicked() {
+                *instruction_open = true;
+            }
             ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Min year:");
