@@ -235,7 +235,7 @@ impl TemplateApp {
         ctx.input(|i| {
             dbg!(&i.raw.dropped_files);
             if !i.raw.dropped_files.is_empty() {
-                println!("not empty");
+                dbg!(&i.raw.dropped_files);
                 if let Some(bytes) = i.raw.dropped_files[0].bytes.as_deref() {
                     println!("some bytes");
                     if let Ok(file_content) = std::str::from_utf8(bytes) {
